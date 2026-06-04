@@ -2,7 +2,6 @@
 // Copyright 2025-2026 Mindful Software LLC d/b/a Dartastic.io, All rights reserved.
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
-import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 
 import 'otel_envoy_suppression.dart';
 
@@ -52,51 +51,65 @@ Future<T> tracedEnvoy<T>({
   final t = tracer ?? OTel.tracerProvider().getTracer('otel_envoy');
   final span = t.startSpan('envoy $operation', kind: SpanKind.server);
   try {
-    span.setStringAttribute('http.route', '$operation');
+    span.addAttributes(
+        OTel.attributes([OTel.attributeString('http.route', operation)]));
     final r = await invoke();
     final res = r.result;
     if (res != null) {
       if (res.cluster != null) {
-        span.setStringAttribute('envoy.cluster', res.cluster!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('envoy.cluster', res.cluster!)]));
       }
       if (res.upstreamHost != null) {
-        span.setStringAttribute('server.address', res.upstreamHost!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('server.address', res.upstreamHost!)]));
       }
       if (res.route != null) {
-        span.setStringAttribute('http.route', res.route!);
+        span.addAttributes(
+            OTel.attributes([OTel.attributeString('http.route', res.route!)]));
       }
       if (res.listener != null) {
-        span.setStringAttribute('envoy.listener', res.listener!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('envoy.listener', res.listener!)]));
       }
       if (res.filter != null) {
-        span.setStringAttribute('envoy.filter', res.filter!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('envoy.filter', res.filter!)]));
       }
       if (res.responseFlags != null) {
-        span.setStringAttribute('envoy.response_flags', res.responseFlags!);
+        span.addAttributes(OTel.attributes([
+          OTel.attributeString('envoy.response_flags', res.responseFlags!)
+        ]));
       }
       if (res.upstreamServiceTimeMs != null) {
-        span.setIntAttribute(
-          'envoy.upstream.service_time',
-          res.upstreamServiceTimeMs!,
-        );
+        span.addAttributes(OTel.attributes([
+          OTel.attributeInt(
+            'envoy.upstream.service_time',
+            res.upstreamServiceTimeMs!,
+          )
+        ]));
       }
       if (res.durationMs != null) {
-        span.setIntAttribute('http.server.duration', res.durationMs!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeInt('http.server.duration', res.durationMs!)]));
       }
       if (res.statusCode != null) {
-        span.setIntAttribute('http.response.status_code', res.statusCode!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeInt('http.response.status_code', res.statusCode!)]));
       }
       if (res.errorCode != null) {
-        span.setStringAttribute('envoy.error.code', res.errorCode!);
+        span.addAttributes(OTel.attributes(
+            [OTel.attributeString('envoy.error.code', res.errorCode!)]));
       }
-      final fail =
-          res.errorCode != null ||
+      final fail = res.errorCode != null ||
           (res.statusCode != null && res.statusCode! >= 400);
       if (fail) {
-        span.setStringAttribute(
-          ErrorResource.errorType.key,
-          res.errorCode ?? 'envoy.error',
-        );
+        span.addAttributes(OTel.attributes([
+          OTel.attributeString(
+            ErrorResource.errorType.key,
+            res.errorCode ?? 'envoy.error',
+          )
+        ]));
         span.setStatus(SpanStatusCode.Error, res.errorMessage);
       }
     }
