@@ -1,11 +1,12 @@
-// Licensed under the Dartastic Pro Software License Agreement.
+// Licensed under the Apache License, Version 2.0
 // Copyright 2025-2026 Mindful Software LLC d/b/a Dartastic.io, All rights reserved.
 
-import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart';
 
 import 'otel_envoy_suppression.dart';
 
 class EnvoyResult {
+  /// Creates a result.
   const EnvoyResult({
     this.cluster,
     this.upstreamHost,
@@ -33,8 +34,13 @@ class EnvoyResult {
   final String? errorMessage;
 }
 
+/// What a traced call returned: the value for the caller plus fields
+/// recorded on the span.
 class EnvoyCallResult<T> {
+  /// Creates a call result.
   const EnvoyCallResult({required this.value, this.result});
+
+  /// The value returned to the caller.
   final T value;
   final EnvoyResult? result;
 }
@@ -42,71 +48,72 @@ class EnvoyCallResult<T> {
 Future<T> tracedEnvoy<T>({
   required String operation,
   required Future<EnvoyCallResult<T>> Function() invoke,
-  Tracer? tracer,
+  APITracer? tracer,
 }) async {
   if (envoyInstrumentationSuppressed()) {
     final r = await invoke();
     return r.value;
   }
-  final t = tracer ?? OTel.tracerProvider().getTracer('otel_envoy');
+  final t = tracer ?? OTelAPI.tracerProvider().getTracer('otel_envoy');
   final span = t.startSpan('envoy $operation', kind: SpanKind.server);
   try {
     span.addAttributes(
-        OTel.attributes([OTel.attributeString('http.route', operation)]));
+        OTelAPI.attributes([OTelAPI.attributeString('http.route', operation)]));
     final r = await invoke();
     final res = r.result;
     if (res != null) {
       if (res.cluster != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('envoy.cluster', res.cluster!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('envoy.cluster', res.cluster!)]));
       }
       if (res.upstreamHost != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('server.address', res.upstreamHost!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('server.address', res.upstreamHost!)]));
       }
       if (res.route != null) {
-        span.addAttributes(
-            OTel.attributes([OTel.attributeString('http.route', res.route!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('http.route', res.route!)]));
       }
       if (res.listener != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('envoy.listener', res.listener!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('envoy.listener', res.listener!)]));
       }
       if (res.filter != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('envoy.filter', res.filter!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('envoy.filter', res.filter!)]));
       }
       if (res.responseFlags != null) {
-        span.addAttributes(OTel.attributes([
-          OTel.attributeString('envoy.response_flags', res.responseFlags!)
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeString('envoy.response_flags', res.responseFlags!)
         ]));
       }
       if (res.upstreamServiceTimeMs != null) {
-        span.addAttributes(OTel.attributes([
-          OTel.attributeInt(
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeInt(
             'envoy.upstream.service_time',
             res.upstreamServiceTimeMs!,
           )
         ]));
       }
       if (res.durationMs != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeInt('http.server.duration', res.durationMs!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeInt('http.server.duration', res.durationMs!)]));
       }
       if (res.statusCode != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeInt('http.response.status_code', res.statusCode!)]));
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeInt('http.response.status_code', res.statusCode!)
+        ]));
       }
       if (res.errorCode != null) {
-        span.addAttributes(OTel.attributes(
-            [OTel.attributeString('envoy.error.code', res.errorCode!)]));
+        span.addAttributes(OTelAPI.attributes(
+            [OTelAPI.attributeString('envoy.error.code', res.errorCode!)]));
       }
       final fail = res.errorCode != null ||
           (res.statusCode != null && res.statusCode! >= 400);
       if (fail) {
-        span.addAttributes(OTel.attributes([
-          OTel.attributeString(
-            ErrorResource.errorType.key,
+        span.addAttributes(OTelAPI.attributes([
+          OTelAPI.attributeString(
+            ErrorAttributes.errorType.key,
             res.errorCode ?? 'envoy.error',
           )
         ]));
